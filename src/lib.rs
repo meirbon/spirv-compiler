@@ -1,5 +1,6 @@
 pub use shaderc::{
-    GlslProfile, Limit, OptimizationLevel, ResourceKind, ShaderKind, SourceLanguage, TargetEnv,
+    GlslProfile, Limit, OptimizationLevel, ResourceKind, ShaderKind, SourceLanguage, SpirvVersion,
+    TargetEnv,
 };
 use std::{
     cmp::Ordering,
@@ -42,9 +43,9 @@ pub struct CompilationError {
     pub description: String,
 }
 
-impl Into<CompilerError> for CompilationError {
-    fn into(self) -> CompilerError {
-        CompilerError::Log(self)
+impl From<CompilationError> for CompilerError {
+    fn from(val: CompilationError) -> Self {
+        CompilerError::Log(val)
     }
 }
 
@@ -70,6 +71,12 @@ pub struct CompilerBuilder<'a> {
     has_macros: bool,
 }
 
+impl Default for CompilerBuilder<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> CompilerBuilder<'a> {
     pub fn new() -> CompilerBuilder<'a> {
         CompilerBuilder {
@@ -77,6 +84,11 @@ impl<'a> CompilerBuilder<'a> {
             include_dirs: Vec::new(),
             has_macros: false,
         }
+    }
+
+    pub fn with_target_spirv(mut self, version: SpirvVersion) -> Self {
+        self.options.set_target_spirv(version);
+        self
     }
 
     pub fn with_macro(mut self, name: &str, value: Option<&str>) -> Self {
@@ -90,7 +102,7 @@ impl<'a> CompilerBuilder<'a> {
         self
     }
 
-    pub fn with_binding_base(mut self, kind: shaderc::ResourceKind, base: u32) -> Self {
+    pub fn with_binding_base(mut self, kind: ResourceKind, base: u32) -> Self {
         self.options.set_binding_base(kind, base);
         self
     }
@@ -131,7 +143,7 @@ impl<'a> CompilerBuilder<'a> {
         self
     }
 
-    pub fn with_source_language(mut self, lang: shaderc::SourceLanguage) -> Self {
+    pub fn with_source_language(mut self, lang: SourceLanguage) -> Self {
         self.options.set_source_language(lang);
         self
     }
@@ -147,7 +159,7 @@ impl<'a> CompilerBuilder<'a> {
         self
     }
 
-    pub fn with_opt_level(mut self, level: shaderc::OptimizationLevel) -> Self {
+    pub fn with_opt_level(mut self, level: OptimizationLevel) -> Self {
         self.options.set_optimization_level(level);
         self
     }
@@ -249,10 +261,10 @@ impl<'a> Compiler<'a> {
     ) -> Result<shaderc::ResolvedInclude, String> {
         use shaderc::{IncludeType, ResolvedInclude};
         if include_depth >= 32 {
-            return Err(String::from(format!(
+            return Err(format!(
                 "Include depth {} too high!",
                 include_depth
-            )));
+            ));
         }
 
         let requested_path = PathBuf::from(String::from(requested_source));
@@ -273,10 +285,10 @@ impl<'a> Compiler<'a> {
                 }
             }
 
-            return Err(String::from(format!(
+            return Err(format!(
                 "Could not find file: {}",
                 requested_source
-            )));
+            ));
         } else if include_type == IncludeType::Relative {
             // #include ""
             let base_folder = requesting_path.as_path().parent().unwrap();
@@ -306,16 +318,16 @@ impl<'a> Compiler<'a> {
                 }
             }
 
-            return Err(String::from(format!(
+            return Err(format!(
                 "Could not find file: {}",
                 requested_source
-            )));
+            ));
         }
 
-        Err(String::from(format!(
+        Err(format!(
             "Unkown error resolving file: {}",
             requested_source
-        )))
+        ))
     }
 
     pub fn compile_from_string(

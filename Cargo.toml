@@ -1,6 +1,6 @@
 [package]
 name = "spirv-compiler"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Mèir Noordermeer <meirnoordermeer@me.com>"]
 description = "Convenience wrapper for shaderc in Rust"
 repository = "https://github.com/meirbon/spirv-compiler"
